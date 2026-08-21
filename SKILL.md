@@ -83,6 +83,66 @@ python scripts/ocr_tool.py "<pdf路径>" --json
 - 若 `winocr` 未装，`_winocr_ready()` 返回 False 会自动回退 Tesseract，不影响使用
 - **dsh 上传附件无扩展名**（如 `~/.dsh/attachments/v1/objects/44/<sha256>`）：脚本按扩展名校验会拒（"不支持的扩展名"），先复制为带 `.png`/`.jpg` 扩展名的临时文件再 OCR
 
+## AI 阅读配置（模型如何消费 OCR 输出）
+
+本技能的核心场景：**把图片/PDF 转成文本喂给不具备视觉输入的模型**（如 DeepSeek-V4-Flash 等文本模型），或作为视觉通道的备用/交叉验证。
+
+### 1. 适用条件
+
+- 模型无图像输入能力：图片理解一律走本通道（OCR 文本代替视觉）
+- 模型有视觉但需结构化文本：OCR 结果可作为交叉验证
+
+### 2. 推荐输出配置
+
+- **一律 `--json`**：结构化、UTF-8、字段语义明确，避免控制台显示乱码干扰判断
+- 图片：`lines[]`（每行 `text`+`score`）+ `text`（合并全文）
+- PDF：`pages[]`（每页 `text`）
+- 失败统一返回 `{ok:false, error:...}`，可直接判读
+
+### 3. AI 阅读五步流程
+
+1. **定位文件**：dsh 附件在 `~/.dsh/attachments/v1/objects/<xx>/<sha256>`，**无扩展名先复制为 .png/.jpg** 再识别
+2. **执行识别**：`python scripts/ocr_tool.py "<文件路径>" --json`
+3. **解析 JSON**：读取 `lines`/`pages` 字段（勿依赖控制台文本）
+4. **静默纠正**：形近字（L/I、O/0、全角点、漏字）结合上下文纠正，只给最终结果
+5. **汇报**：完整文字 + 低置信行备注
+
+### 4. 置信度语义（AI 判断依据，勿混用）
+
+| score 来源 | 语义 | 使用建议 |
+|---|---|---|
+| win | 恒 100.0（Windows OCR API 不提供置信度） | **不能**作为质量依据 |
+| tess | 真实平均置信度（TSV conf 均值） | <80 需复核 |
+| rapid | 检测模型分数 | 与 tess 不可直接比较 |
+
+### 5. 引擎配置策略
+
+- `auto`（默认）：win → rapid → tess 逐级降级；用 `--json` 的 `engine` 字段确认实际引擎
+- 低清/小字图：加 `--preprocess`（2x 放大+增强）；tess 引擎始终强制预处理
+- 复杂版式/表格：`--engine rapid`（需已安装）
+- 中文优先：默认 win（需系统 zh-Hans 语言包，Win11 通常自带）
+
+### 6. 环境检查清单
+
+- Python 3.11（勿用 3.14 venv，onnxruntime 无 wheel）
+- `winocr` + `pillow` 已安装
+- Tesseract（可选兜底，chi_sim+eng）
+- Windows 中文 OCR 语言包（缺包时 winocr 会退回非中文语言 → 乱码）
+
+### 7. 集成示例（Agent 调用）
+
+```bash
+python scripts/ocr_tool.py "/path/to/image.png" --json
+```
+
+```jsonc
+{ "ok": true, "type": "image", "engine": "auto",
+  "lines": [{"text": "供应商: 延锋 ASQE", "score": 100.0}],
+  "text": "供应商: 延锋 ASQE\n零件编号 P/N: 1234567890" }
+```
+
+消费要点：`engine` 决定置信度解读方式；`text` 供直接引用；`lines` 供逐行复核。
+
 ## 验证记录
 
 - 自测：Windows OCR 完整识别「探索未至之境 / 中文识别精度测试 / 供应商: 延锋 ASQE / 零件编号 P/N: 1234567890」
