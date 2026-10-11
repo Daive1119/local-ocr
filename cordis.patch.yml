@@ -1,0 +1,9 @@
+# dsh-local-ocr bundle patch: inserts the `ocr` tool row into the profile roster.
+#
+# The package's node half (exports "." -> index.js) registers one model-facing
+# tool, `ocr`, which runs the bundled offline script scripts/ocr_tool.py
+# (Windows native OCR -> RapidOCR -> Tesseract) over one image or PDF and
+# returns the recognized text. Nothing leaves the machine.
+- insert:
+    - id: local-ocr
+      name: dsh-local-ocr

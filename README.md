@@ -8,11 +8,52 @@
 
 ---
 
+## 作为 dsh 插件安装（v1.1.0+）
+
+本仓库同时是一个可安装的 DeepSeek Harness 插件：`package.json` 声明了 `dsh.bundle`，`cordis.patch.yml` 插入一行插件条目。装上后，模型拿到**一个 `ocr` 工具**，直接对图片/PDF 做离线识别，不需要模型自己具备视觉输入。
+
+```bash
+# 从 GitHub 安装（本插件无构建步骤，不需要 allowBuilds 授权）
+dsh plugin --profile <profile> add github:Daive1119/local-ocr
+
+# 或者从本地克隆安装
+dsh plugin --profile <profile> add <本仓库路径>
+```
+
+注册的工具：
+
+| 参数 | 必填 | 说明 |
+|------|------|------|
+| `path` | ✅ | 一张图片或一个 PDF 的路径 |
+| `engine` | | `auto`（默认）/ `win` / `rapid` / `tess`，传给脚本的引擎偏好 |
+| `preprocess` | | 识别前预处理（2x 放大/灰度/对比度/降噪），低清图用；PDF 忽略 |
+
+返回值与脚本的 `--json` 同构：图片返回 `text` + 逐行 `lines`（含 `score`），PDF 返回逐页 `pages`。
+`engine` 字段回显的是**请求的**引擎偏好，不是实际产出文字的引擎——脚本不报告后者。
+
+可选配置（写在插件条目里）：
+
+```yaml
+- id: local-ocr
+  name: dsh-local-ocr
+  config:
+    python: python        # 解释器（默认 python）
+    scriptPath: ...       # 换用别的 ocr_tool.py 副本
+    timeoutMs: 120000     # 单次识别墙钟上限
+```
+
+> 注意：插件的 `ocr` 工具与 `SKILL.md` 是同一套能力的两种用法。`SKILL.md` 仍可单独复制到技能目录，按技能方式使用。
+
+---
+
 ## 目录结构
 
 ```
 local-ocr/
 ├── SKILL.md              # 技能指令（agent 加载后按其执行）
+├── index.js              # dsh 插件宿主半：注册 ocr 工具（v1.1.0+）
+├── cordis.patch.yml      # 插件条目（dsh.bundle.patch 指向它）
+├── package.json          # 声明 dsh.bundle，使本仓库可被 dsh plugin add 安装
 ├── scripts/
 │   ├── ocr_tool.py       # OCR 实现（本仓库快照，约 430 行，无第三方框架依赖）
 │   └── ocr.bat           # 便捷包装（%~dp0 定位同目录脚本，可整体移动）

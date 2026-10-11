@@ -1,0 +1,44 @@
+{
+  "name": "dsh-local-ocr",
+  "version": "1.1.0",
+  "description": "Offline OCR tool for DeepSeek Harness: registers an ocr tool that runs the bundled ocr_tool.py (Windows native OCR, then RapidOCR, then Tesseract) over images and PDFs.",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "cordis.patch.yml",
+    "scripts/ocr_tool.py",
+    "scripts/ocr.bat",
+    "SKILL.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-tools": "^0.2.0-rc.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Daive1119/local-ocr.git"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "ocr",
+    "offline-ocr",
+    "windows",
+    "skill"
+  ]
+}
